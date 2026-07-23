@@ -29,9 +29,9 @@ def format_context_with_citations(scored_chunks):
         source_name = chunk["source"].split("/")[-1].split("\\")[-1]
         page = chunk["page"]
         content = chunk["content"]
-        
+
         # Add structure hints
         tag = f"[Source {i}: {source_name}, page {page}]"
         blocks.append(f"{tag}\n{content}")
-    
+
     return "\n\n---\n\n".join(blocks)

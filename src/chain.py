@@ -1,32 +1,33 @@
 from src import config
 from src.retriever import retrieve_with_scores, format_context_with_citations
 from src.llm import generate_text
-from src.output_parser import format_instructions, parse_structured_answer
+from src.output_parser import parse_structured_answer
 
 # Re-ranking with cross-encoder
 try:
     from sentence_transformers import CrossEncoder
     reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
     HAS_RERANKER = True
-except ImportError:
+except Exception:
+
     HAS_RERANKER = False
     reranker = None
 
 
-def rerank_chunks(question, chunks, top_n=4):
+def rerank_chunks(question, chunks, top_n=config.RERANK_TOP_N):
     """Re-rank chunks using cross-encoder for better relevance."""
     if not HAS_RERANKER or not chunks or len(chunks) <= top_n:
         return chunks[:top_n]
-    
+
     pairs = [(question, c["content"]) for c in chunks]
     scores = reranker.predict(pairs)
-    
+
     scored = list(zip(chunks, scores))
     scored.sort(key=lambda x: x[1], reverse=True)
     return [c for c, s in scored[:top_n]]
 
 
-# Improved prompt with explicit table handling
+
 prompt_template = """You are an academic advisor for Sadat Academy CS program.
 
 Answer using ONLY the provided context.
@@ -84,19 +85,17 @@ If the answer does NOT exist in the context, return exactly:
 
 OUTPUT FORMAT
 
-{format_instructions}
+Return a single JSON object with exactly these three fields:
+
+{{
+    "answer": "the answer to the student's question, based only on the given context",
+    "source_page": "the page number(s) the answer came from, e.g. '2' or '1, 3'",
+    "confidence": "one of: high, medium, low"
+}}
 
 IMPORTANT RULES:
 
 Return ONLY valid JSON.
-
-Example:
-
-{{
-    "answer": "...",
-    "source_page": "3",
-    "confidence": "high"
-}}
 
 Do NOT write explanations.
 
@@ -131,7 +130,7 @@ def detect_language(text):
 def answer_question(vector_store, question, k=config.TOP_K_RESULTS):
     # 1. Retrieve chunks
     scored_chunks = retrieve_with_scores(vector_store, question, k=k)
-    
+
     if not scored_chunks:
         return {
             "answer": "لم أجد معلومات متعلقة بسؤالك في المستندات المتاحة.",
@@ -142,18 +141,16 @@ def answer_question(vector_store, question, k=config.TOP_K_RESULTS):
         }
 
     # 2. Re-rank to get most relevant chunks
-    best_chunks = rerank_chunks(question, scored_chunks, top_n=4)
-    
+    best_chunks = rerank_chunks(question, scored_chunks)
+
     # 3. Build context
     context = format_context_with_citations(best_chunks)
     language = detect_language(question)
-
 
     prompt = prompt_template.format(
         context=context,
         question=question,
         language=language,
-        format_instructions=format_instructions,
     )
 
     # 4. Generate and parse

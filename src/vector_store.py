@@ -5,9 +5,6 @@ from langchain_community.vectorstores import FAISS
 
 from src import config
 
-print("Config file:", config.__file__)
-print("Has EMBEDDING_DEVICE:", hasattr(config, "EMBEDDING_DEVICE"))
-
 
 def get_embedding_model(model_name=config.EMBEDDING_MODEL_NAME):
     # On memory-constrained GPUs (<=8-10GB), keep the embedding model on CPU

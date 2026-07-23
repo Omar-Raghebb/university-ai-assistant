@@ -35,7 +35,7 @@ def generate_text(prompt, max_new_tokens=config.LLM_MAX_NEW_TOKENS, temperature=
     # Mistral uses different format than Qwen
     # Use simple instruction format for Mistral
     formatted_prompt = f"<s>[INST] {prompt} [/INST]"
-    
+
     inputs = tok(formatted_prompt, return_tensors="pt").to(mdl.device)
     prompt_len = inputs["input_ids"].shape[1]
 

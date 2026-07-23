@@ -22,9 +22,10 @@ CHUNK_OVERLAP = 250
 
 # retrieval
 TOP_K_RESULTS = 10  # Retrieve more, re-rank later
+RERANK_TOP_N = 4     # How many chunks survive the cross-encoder rerank
 
 # deployment
 NGROK_TOKEN = os.getenv("NGROK_TOKEN")
 API_KEY = os.getenv("API_KEY", "secret123")
 
-EMBEDDING_DEVICE = "cuda"
+EMBEDDING_DEVICE = os.getenv("EMBEDDING_DEVICE", "auto")

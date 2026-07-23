@@ -1,6 +1,6 @@
 import re
 import json
-from langchain_classic.output_parsers import StructuredOutputParser, ResponseSchema
+from langchain_classic.output_parsers.structured import StructuredOutputParser, ResponseSchema
 
 response_schemas = [
     ResponseSchema(name="answer", description="the answer to the student's question, based only on the given context"),
@@ -9,6 +9,15 @@ response_schemas = [
 ]
 
 output_parser = StructuredOutputParser.from_response_schemas(response_schemas)
+
+# NOTE: format_instructions is kept available for reuse elsewhere, but
+# chain.py does NOT inject this into the prompt. langchain's default
+# format instructions tell the model to wrap output in a ```json fenced
+# block, which directly contradicts chain.py's "no markdown, no ```json"
+# instruction. Feeding both to a small quantized model produces
+# inconsistent formatting. chain.py instead describes the JSON schema
+# inline in its own prompt, and this module's job is purely robust
+# parsing of whatever comes back (fenced, bare, or malformed).
 format_instructions = output_parser.get_format_instructions()
 
 
@@ -18,18 +27,18 @@ def extract_json_block(text):
     matches = re.findall(r"```json\s*(.*?)\s*```", text, re.DOTALL)
     if matches:
         return matches[-1].strip()
-    
+
     # Try plain code block
     matches = re.findall(r"```\s*(.*?)\s*```", text, re.DOTALL)
     if matches:
         return matches[-1].strip()
-    
+
     # Try to find JSON object directly
     matches = re.findall(r"(\{.*?\})", text, re.DOTALL)
     if matches:
         # Find the longest match (most complete JSON)
         return max(matches, key=len).strip()
-    
+
     return text.strip()
 
 
@@ -38,18 +47,18 @@ def clean_json_text(text):
     # Remove markdown bold/italic
     text = re.sub(r'\*\*', '', text)
     text = re.sub(r'\*', '', text)
-    
+
     # Fix Arabic punctuation in strings
     text = text.replace('،', ',')
-    
+
     # Fix common quote issues (convert curly/typographic quotes to straight ASCII quotes)
     text = text.replace('\u201c', '"').replace('\u201d', '"')
     text = text.replace('\u2018', "'").replace('\u2019', "'")
-    
+
     # Remove trailing commas before closing braces/brackets
     text = re.sub(r',\s*}', '}', text)
     text = re.sub(r',\s*]', ']', text)
-    
+
     return text
 
 
@@ -61,7 +70,7 @@ def parse_structured_answer(raw_text):
     # Extract potential JSON block
     json_block = extract_json_block(raw_text)
     json_block = clean_json_text(json_block)
-    
+
     # Try parsing as JSON first
     try:
         parsed = json.loads(json_block)
@@ -73,14 +82,14 @@ def parse_structured_answer(raw_text):
         }
     except json.JSONDecodeError:
         pass
-    
+
     # Try LangChain parser as fallback
     try:
         wrapped = f"```json\n{json_block}\n```"
         return output_parser.parse(wrapped)
     except Exception:
         pass
-    
+
     # Ultimate fallback: return raw text as answer
     return {
         "answer": raw_text.strip(),
