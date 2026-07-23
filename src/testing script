@@ -1,0 +1,24 @@
+# test_rag.py
+from src.chain import answer_question
+from src.vector_store import load_vector_store
+
+vs = load_vector_store()
+
+test_questions = [
+    "ما هي متطلبات CS305؟",
+    "كم ساعة معتمدة مطلوبة للتخرج؟",
+    "ما هي شروط التخرج؟",
+    "ما هو المتطلب السابق لمقرر هياكل البيانات؟",
+    "كم ساعة معتمدة لمقرر أساسيات البرمجة؟",
+    "ما هو نظام التقدير GPA؟",
+    "ما هي الحد الأدنى للعبء الدراسي؟",
+]
+
+print("=" * 60)
+for q in test_questions:
+    print(f"\n❓ السؤال: {q}")
+    result = answer_question(vs, q)
+    print(f"✅ الإجابة: {result['answer']}")
+    print(f"📄 الصفحة: {result['source_page']}")
+    print(f"🎯 الثقة: {result['confidence']}")
+    print("-" * 60)

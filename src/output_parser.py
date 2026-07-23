@@ -1,0 +1,89 @@
+import re
+import json
+from langchain_classic.output_parsers import StructuredOutputParser, ResponseSchema
+
+response_schemas = [
+    ResponseSchema(name="answer", description="the answer to the student's question, based only on the given context"),
+    ResponseSchema(name="source_page", description="the page number(s) the answer came from, e.g. '2' or '1, 3'"),
+    ResponseSchema(name="confidence", description="one of: high, medium, low"),
+]
+
+output_parser = StructuredOutputParser.from_response_schemas(response_schemas)
+format_instructions = output_parser.get_format_instructions()
+
+
+def extract_json_block(text):
+    """Extract JSON from various formats the model might output."""
+    # Try code block first
+    matches = re.findall(r"```json\s*(.*?)\s*```", text, re.DOTALL)
+    if matches:
+        return matches[-1].strip()
+    
+    # Try plain code block
+    matches = re.findall(r"```\s*(.*?)\s*```", text, re.DOTALL)
+    if matches:
+        return matches[-1].strip()
+    
+    # Try to find JSON object directly
+    matches = re.findall(r"(\{.*?\})", text, re.DOTALL)
+    if matches:
+        # Find the longest match (most complete JSON)
+        return max(matches, key=len).strip()
+    
+    return text.strip()
+
+
+def clean_json_text(text):
+    """Clean common JSON formatting issues from model output."""
+    # Remove markdown bold/italic
+    text = re.sub(r'\*\*', '', text)
+    text = re.sub(r'\*', '', text)
+    
+    # Fix Arabic punctuation in strings
+    text = text.replace('،', ',')
+    
+    # Fix common quote issues (convert curly/typographic quotes to straight ASCII quotes)
+    text = text.replace('\u201c', '"').replace('\u201d', '"')
+    text = text.replace('\u2018', "'").replace('\u2019', "'")
+    
+    # Remove trailing commas before closing braces/brackets
+    text = re.sub(r',\s*}', '}', text)
+    text = re.sub(r',\s*]', ']', text)
+    
+    return text
+
+
+def parse_structured_answer(raw_text):
+    """
+    Parse model output into structured JSON.
+    Falls back gracefully if parsing fails.
+    """
+    # Extract potential JSON block
+    json_block = extract_json_block(raw_text)
+    json_block = clean_json_text(json_block)
+    
+    # Try parsing as JSON first
+    try:
+        parsed = json.loads(json_block)
+        # Ensure required fields exist
+        return {
+            "answer": parsed.get("answer", json_block),
+            "source_page": str(parsed.get("source_page", "unknown")),
+            "confidence": parsed.get("confidence", "unknown"),
+        }
+    except json.JSONDecodeError:
+        pass
+    
+    # Try LangChain parser as fallback
+    try:
+        wrapped = f"```json\n{json_block}\n```"
+        return output_parser.parse(wrapped)
+    except Exception:
+        pass
+    
+    # Ultimate fallback: return raw text as answer
+    return {
+        "answer": raw_text.strip(),
+        "source_page": "unknown",
+        "confidence": "unknown",
+    }

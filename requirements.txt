@@ -1,0 +1,33 @@
+# Core LLM stack
+torch
+transformers>=4.43
+accelerate
+bitsandbytes
+sentencepiece
+
+# RAG
+langchain
+langchain-core
+langchain-community
+langchain-huggingface
+langchain-classic
+langchain-text-splitters
+faiss-cpu
+sentence-transformers
+
+# Fine-tuning (src/finetune.py)
+peft
+trl
+datasets
+
+# Deployment (deploy_server.py / client_example.py)
+fastapi
+uvicorn
+pyngrok
+requests
+
+# UI
+streamlit
+
+# Config
+python-dotenv
