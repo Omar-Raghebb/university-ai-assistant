@@ -6,9 +6,9 @@
 
 | Field            | Value                                |
 | ---------------- | ------------------------------------ |
-| Full Name        |                                       |
+| Full Name        | Omar Mahmoud Mouhamed                                      |
 | Project Name     | University AI Assistant              |
-| GitHub Username  |                                       |
+| GitHub Username  | Omar_Raghebb                                      |
 | Challenge Batch  | June–July 2026                       |
 | Training Program | Large Language Models (LLMs) Program |
 | Organization     | [**Edrak for Ai**](https://edrak4ai.com/en) |
