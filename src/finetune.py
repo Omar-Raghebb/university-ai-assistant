@@ -34,8 +34,6 @@ def load_qa_dataset(path: str = QA_DATA_PATH) -> Dataset:
         pairs = json.load(f)
 
     def format_example(example):
-        # Simple instruct-style template -- matches Mistral's expected
-        # [INST] ... [/INST] format.
         text = f"[INST] {example['question']} [/INST] {example['answer']}"
         return {"text": text}
 
@@ -103,9 +101,6 @@ def run_finetuning():
     tokenizer.save_pretrained(f"{OUTPUT_DIR}/adapter")
     print(f"LoRA adapter saved to {OUTPUT_DIR}/adapter")
 
-    # Optional: merge LoRA weights into the base model for a single
-    # deployable checkpoint (bigger file, but simpler to load in chain.py
-    # -- just point config.LLM_MODEL_NAME at the merged folder).
     merged = peft_model.merge_and_unload()
     merged.save_pretrained(f"{OUTPUT_DIR}/merged")
     tokenizer.save_pretrained(f"{OUTPUT_DIR}/merged")

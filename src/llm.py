@@ -1,4 +1,5 @@
 import torch
+import os
 from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
 
 from src import config
@@ -14,17 +15,45 @@ def load_model(model_name=config.LLM_MODEL_NAME, use_4bit=config.USE_4BIT_QUANTI
         return tokenizer, model
 
     tokenizer = AutoTokenizer.from_pretrained(model_name)
-    device_map = "auto"
+
+    # إنشاء مجلد offload في الـ root لو مش موجود
+    offload_folder = os.path.join(os.path.dirname(os.path.dirname(__file__)), "offload")
+    os.makedirs(offload_folder, exist_ok=True)
+
+
+    max_memory = {
+        0: "6GiB",
+        "cpu": "30GiB",
+    }
+
     if use_4bit:
         bnb_config = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_use_double_quant=True,
             bnb_4bit_quant_type="nf4",
             bnb_4bit_compute_dtype=torch.float16,
+            llm_int8_enable_fp32_cpu_offload=True,
         )
-        model = AutoModelForCausalLM.from_pretrained(model_name, quantization_config=bnb_config, device_map=device_map)
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            quantization_config=bnb_config,
+            device_map="auto",
+            max_memory=max_memory,
+            offload_folder=offload_folder,
+            offload_state_dict=True,
+            torch_dtype=torch.float16,
+            low_cpu_mem_usage=True,
+        )
     else:
-        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16, device_map=device_map)
+        model = AutoModelForCausalLM.from_pretrained(
+            model_name,
+            torch_dtype=torch.float16,
+            device_map="auto",
+            max_memory=max_memory,
+            offload_folder=offload_folder,
+            offload_state_dict=True,
+            low_cpu_mem_usage=True,
+        )
 
     return tokenizer, model
 
@@ -32,8 +61,6 @@ def load_model(model_name=config.LLM_MODEL_NAME, use_4bit=config.USE_4BIT_QUANTI
 def generate_text(prompt, max_new_tokens=config.LLM_MAX_NEW_TOKENS, temperature=config.LLM_TEMPERATURE):
     tok, mdl = load_model()
 
-    # Mistral uses different format than Qwen
-    # Use simple instruction format for Mistral
     formatted_prompt = f"<s>[INST] {prompt} [/INST]"
 
     inputs = tok(formatted_prompt, return_tensors="pt").to(mdl.device)

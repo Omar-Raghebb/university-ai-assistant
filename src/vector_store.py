@@ -7,9 +7,6 @@ from src import config
 
 
 def get_embedding_model(model_name=config.EMBEDDING_MODEL_NAME):
-    # On memory-constrained GPUs (<=8-10GB), keep the embedding model on CPU
-    # so the full VRAM budget is available for the LLM. Override via
-    # config.EMBEDDING_DEVICE if you have headroom to spare (e.g. 16GB+ card).
     device = config.EMBEDDING_DEVICE
     if device == "auto":
         device = "cuda" if torch.cuda.is_available() else "cpu"
